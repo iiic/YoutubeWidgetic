@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="utf-8">
+	<title>YoutubeWidgetic html example</title>
+	<link rel="stylesheet" href="/example.css" crossorigin="anonymous">
+</head>
+
+<body>
+
+	<div id="youtube-canvas" hidden></div>
+	<script type="module" src="/youtubeWidgetic.mjs" crossorigin="anonymous" data-integrity="sha256-S2uum/79mzg8OUYejkEsGIoe4mfsWQb0Ab1qD+I4tYw="></script>
+	<script type="module">
+		import { YoutubeWidgetic } from '/youtubeWidgetic.mjs';
+		const config = {
+			iFrame: {
+				width: 310,
+			}
+		};
+		new YoutubeWidgetic( 'AIzaSyDUXfwNP4_0kmG8aMLNlY7elAdRQZTFvBA', null, null, config );
+	</script>

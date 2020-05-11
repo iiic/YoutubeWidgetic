@@ -1,0 +1,66 @@
+body{
+	box-sizing: border-box;
+	max-width: 310px;
+}
+
+#youtube-canvas {
+	padding: 1rem;
+}
+
+#youtube-canvas strong {
+	display: block;
+}
+
+#youtube-canvas>div,
+#youtube-canvas>a.play {
+	display: inline-block;
+	margin: 0 -1rem;
+}
+
+#youtube-canvas figure {
+	margin: 0 0 1rem 0;
+}
+
+#youtube-canvas iframe {
+	border: none;
+}
+
+#youtube-canvas picture {
+	position: relative;
+	background: #eee;
+	display: inline-block;
+}
+
+#youtube-canvas picture::before {
+	content: url(/images/youtube-pasive.svg);
+	position: absolute;
+	text-align: center;
+	width: 100%;
+	margin-top: 30%;
+}
+
+#youtube-canvas :hover picture::before {
+	content: url(/images/youtube.svg);
+}
+
+#youtube-canvas img {
+	display: block;
+	max-width: 100%;
+	height: auto;
+}
+
+#youtube-canvas figcaption {
+	margin: 0 1rem;
+	text-align: left;
+}
+
+#youtube-canvas time {
+	float: left;
+	font-size: small;
+}
+
+#youtube-canvas [rel="enclosure"] {
+	float: right;
+	font-size: small;
+	margin-top: -1.3rem;
+}
