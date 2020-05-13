@@ -6,7 +6,7 @@
 * @see https://iiic.dev/youtube-widgetic
 * @license https://creativecommons.org/licenses/by-sa/4.0/legalcode.cs CC BY-SA 4.0
 * @since Q2 2020
-* @version 0.1
+* @version 0.3
 * @readonly
 */
 const YoutubeWidgeticPrivate = class
@@ -23,6 +23,11 @@ const YoutubeWidgeticPrivate = class
 			search: '/youtube/v3/search',
 			videos: '/youtube/v3/videos', // @feature request, not used now
 			commentThreads: '/youtube/v3/commentThreads', // @feature request, not used now
+		},
+		cachingProxy: {
+			origin: null,
+			search: null,
+			checkIfEmbeddableByServer: null,
 		},
 		structure: [
 			'title',
@@ -51,6 +56,8 @@ const YoutubeWidgeticPrivate = class
 			watchOnYoutube: 'Sledovat na YouTube',
 			openInNewTabSuffix: ' ↗️',
 		},
+		clientCacheFor: 15 * 60, // in seconds
+		nLastVideos: 3, // only if cachingProxy.checkIfEmbeddableByServer is set
 		modulesImportPath: 'https://iiic.dev/js/modules',
 		youtubeVideoShortPrefix: 'https://youtu.be/',
 		youtubeVideoEmbedPrefix: 'https://www.youtube.com/embed/',
@@ -79,6 +86,12 @@ const YoutubeWidgeticPrivate = class
 	*/
 	youtubeData = Object;
 
+	/**
+	* @public
+	* @type {Number}
+	*/
+	embeddableVideoNum = 0;
+
 
 	elCreator = {
 		br: () =>
@@ -100,7 +113,8 @@ const YoutubeWidgeticPrivate = class
 					const title = document.createElement( el );
 					title.setAttribute( 'itemprop', 'name' );
 					title.className = 'fn';
-					title.appendChild( document.createTextNode( this.youtubeData.items[ 0 ].snippet.title ) );
+					const titleText = this.youtubeData.items[ this.embeddableVideoNum ].snippet.title.replace( '&amp;', '&' );
+					title.appendChild( document.createTextNode( titleText ) );
 					this.rootElement.appendChild( title );
 				}
 				resolve( true );
@@ -117,7 +131,8 @@ const YoutubeWidgeticPrivate = class
 					/** @type {HTMLLinkElement} */
 					const playLink = ( document.createElement( LINK_NODE_NAME ) );
 
-					playLink.href = this.settings.youtubeVideoShortPrefix + this.youtubeData.items[ 0 ].id.videoId;
+					const videoData = this.youtubeData.items[ this.embeddableVideoNum ];
+					playLink.href = this.settings.youtubeVideoShortPrefix + videoData.id.videoId;
 					playLink.className = 'play';
 					playLink.addEventListener( 'click', ( /** @type {MouseEvent} */ event ) =>
 					{
@@ -152,7 +167,7 @@ const YoutubeWidgeticPrivate = class
 						wrapper.firstElementChild.replaceChild( iFrame, video.firstElementChild );
 					}, false );
 
-					const thumbs = this.youtubeData.items[ 0 ].snippet.thumbnails;
+					const thumbs = videoData.snippet.thumbnails;
 
 					const wrapper = document.createElement( el );
 					const innerElement = document.createElement( this.settings.resultSnippetElements.videoInner );
@@ -168,7 +183,7 @@ const YoutubeWidgeticPrivate = class
 					const img = ( document.createElement( 'IMG' ) );
 
 					img.src = thumbs.high.url;
-					img.alt = this.youtubeData.items[ 0 ].snippet.title;
+					img.alt = videoData.snippet.title;
 					img.width = thumbs.high.width;
 					img.height = thumbs.high.height;
 					img.setAttribute( 'itemprop', 'thumbnail thumbnailUrl' );
@@ -186,10 +201,11 @@ const YoutubeWidgeticPrivate = class
 			{
 				const el = this.settings.resultSnippetElements.description;
 				if ( el ) {
+					const videoData = this.youtubeData.items[ this.embeddableVideoNum ];
 					if ( el === 'FIGCAPTION' ) {
 						const figcaption = document.createElement( el );
 						figcaption.setAttribute( 'itemprop', 'description' );
-						figcaption.appendChild( document.createTextNode( this.youtubeData.items[ 0 ].snippet.description ) );
+						figcaption.appendChild( document.createTextNode( videoData.snippet.description ) );
 						this.rootElement.getElementsByTagName( this.settings.resultSnippetElements.video )[ 0 ].appendChild( figcaption );
 					} else {
 						// @todo
@@ -204,7 +220,8 @@ const YoutubeWidgeticPrivate = class
 			{
 				const el = this.settings.resultSnippetElements.time;
 				if ( el ) {
-					const apiTimeString = this.youtubeData.items[ 0 ].snippet.publishTime ? this.youtubeData.items[ 0 ].snippet.publishTime : this.youtubeData.items[ 0 ].snippet.publishedAt;
+					const videoData = this.youtubeData.items[ this.embeddableVideoNum ];
+					const apiTimeString = videoData.snippet.publishTime ? videoData.snippet.publishTime : videoData.snippet.publishedAt;
 					const time = new Date( apiTimeString );
 					const timeElement = document.createElement( el );
 					timeElement.setAttribute( 'datetime', apiTimeString );
@@ -225,7 +242,7 @@ const YoutubeWidgeticPrivate = class
 				/** @type {HTMLLinkElement} */
 				const link = ( document.createElement( 'A' ) );
 
-				link.href = this.settings.youtubeVideoShortPrefix + this.youtubeData.items[ 0 ].id.videoId;
+				link.href = this.settings.youtubeVideoShortPrefix + this.youtubeData.items[ this.embeddableVideoNum ].id.videoId;
 				link.rel = 'enclosure';
 
 				let linkText = this.settings.texts.watchOnYoutube;
@@ -250,7 +267,7 @@ const YoutubeWidgeticPrivate = class
 * @see https://iiic.dev/youtube-widgetic
 * @license https://creativecommons.org/licenses/by-sa/4.0/legalcode.cs CC BY-SA 4.0
 * @since Q2 2020
-* @version 0.1
+* @version 0.3
 */
 export class YoutubeWidgetic
 {
@@ -261,6 +278,15 @@ export class YoutubeWidgetic
 	 */
 	_private;
 
+	/**
+	* @public
+	* @description names of cache items stored in localStorage
+	*/
+	cacheNames = {
+		timestamp: 'YoutubeWidgetic.cacheTimestamp',
+		data: 'YoutubeWidgetic.cachedData',
+		num: 'YoutubeWidgetic.videoEmbeddableNum',
+	}
 
 	constructor (
 		/** @type {String} */ youtubeApiKey,
@@ -279,10 +305,13 @@ export class YoutubeWidgetic
 			this.rootElement = rootElement;
 		}
 		if ( settings ) {
-			this.settings = settings;
-		}
-
-		if ( this.settings.autoRun ) {
+			this.setSettings( settings ).then( () =>
+			{
+				if ( this.settings.autoRun ) {
+					this.run();
+				}
+			} );
+		} else if ( this.settings.autoRun ) {
 			this.run();
 		}
 	}
@@ -300,23 +329,6 @@ export class YoutubeWidgetic
 	get rootElement ()
 	{
 		return this._private.rootElement;
-	}
-
-	set settings ( /** @type {Object} */ inObject )
-	{
-		if ( inObject.modulesImportPath ) {
-			this.settings.modulesImportPath = inObject.modulesImportPath;
-		}
-		// @ts-ignore
-		import( this.settings.modulesImportPath + '/object/deepAssign.mjs' ).then( ( /** @type {Module} */ deepAssign ) =>
-		{
-			new deepAssign.append( Object );
-			// @ts-ignore
-			this._private.settings = Object.deepAssign( this.settings, inObject ); // multi level assign
-		} ).catch( () =>
-		{
-			Object.assign( this._private.settings, inObject ); // single level assign
-		} );
 	}
 
 	/**
@@ -372,6 +384,41 @@ export class YoutubeWidgetic
 		this._private.youtubeData = youtubeData;
 	}
 
+	/**
+	 * @returns {Number}
+	 */
+	get embeddableVideoNum ()
+	{
+		return this._private.embeddableVideoNum;
+	}
+
+	set embeddableVideoNum ( /** @type {Number} */ num )
+	{
+		this._private.embeddableVideoNum = num;
+	}
+
+
+	async setSettings ( /** @type {Object} */ inObject )
+	{
+		return new Promise( ( /** @type {Function} */ resolve ) =>
+		{
+			if ( inObject.modulesImportPath ) {
+				this.settings.modulesImportPath = inObject.modulesImportPath;
+			}
+			// @ts-ignore
+			import( this.settings.modulesImportPath + '/object/deepAssign.mjs' ).then( ( /** @type {Module} */ deepAssign ) =>
+			{
+				new deepAssign.append( Object );
+				// @ts-ignore
+				this._private.settings = Object.deepAssign( this.settings, inObject ); // multi level assign
+				resolve( true );
+			} ).catch( () =>
+			{
+				Object.assign( this._private.settings, inObject ); // single level assign
+				resolve( true );
+			} );
+		} );
+	}
 
 	showResult ()
 	{
@@ -395,7 +442,7 @@ export class YoutubeWidgetic
 	checkApiKey ()
 	{
 		if ( !this.youtubeApiKey ) {
-			throw 'Youtube API Key is missing, get yout own at https://developers.google.com/youtube/v3/getting-started';
+			throw 'Youtube API Key is missing, get your own at https://developers.google.com/youtube/v3/getting-started';
 		}
 	}
 
@@ -410,16 +457,90 @@ export class YoutubeWidgetic
 		} );
 	}
 
+	checkReturnedData ()
+	{
+		if ( typeof this.youtubeData !== 'object' ) {
+			throw 'Fetching data from Youtube failed';
+		}
+	}
+
+	async isEmbeddableVideoBy ( /** @type {URL} */ url, /** @type {Number} */ iterator )
+	{
+		return new Promise( ( /** @type {Function} */ resolve ) =>
+		{
+			const item = this.youtubeData.items[ iterator ];
+			url.searchParams.set( 'id', item.id.videoId );
+			fetch( url.href, {
+				cache: 'no-cache'
+			} ).then( ( /** @type {Response} */ response ) =>
+			{
+				if ( response.ok ) {
+					return response.text();
+				}
+				return null;
+			} ).then( ( /** @type {String} */ text ) =>
+			{
+				if ( text === 'true' ) {
+					resolve( iterator );
+				} else {
+					if ( ( iterator + 1 ) >= this.settings.nLastVideos ) {
+						resolve( 0 );
+					} else {
+						resolve( this.isEmbeddableVideoBy( url, iterator + 1 ) );
+					}
+				}
+			} );
+		} );
+	}
+
+	async findEmbeddableVideo ()
+	{
+		return new Promise( ( /** @type {Function} */ resolve ) =>
+		{
+			const url = this.settings.cachingProxy.checkIfEmbeddableByServer;
+			if ( url && typeof url !== 'string' ) {
+				if ( this.useClientCachedResource() ) {
+					this.embeddableVideoNum = Number( localStorage.getItem( this.cacheNames.num ) );
+					resolve( true );
+					return true;
+				}
+				this.isEmbeddableVideoBy( url, 0 ).then( ( /** @type {Number} */ embeddableVideoNum ) =>
+				{
+					this.embeddableVideoNum = embeddableVideoNum;
+					resolve( true );
+				} );
+			} else {
+				resolve( true );
+			}
+		} );
+	}
+
 	constructApiUrls ()
 	{
 		const ORIGIN_KEY = 'origin';
+		const origin = this.settings.cachingProxy[ ORIGIN_KEY ] ? this.settings.cachingProxy[ ORIGIN_KEY ] : this.settings.youtubeApi[ ORIGIN_KEY ];
 		Object.keys( this.settings.youtubeApi ).forEach( ( /** @type {String} */ key ) =>
 		{
 			if ( key !== ORIGIN_KEY && typeof this.settings.youtubeApi[ key ] === 'string' ) {
-				this.settings.youtubeApi[ key ] = new URL( this.settings.youtubeApi[ key ], this.settings.youtubeApi[ ORIGIN_KEY ] );
+				const pathname = this.settings.cachingProxy[ key ] ? this.settings.cachingProxy[ key ] : this.settings.youtubeApi[ key ];
+				this.settings.youtubeApi[ key ] = new URL( pathname, origin );
 				this.settings.youtubeApi[ key ].searchParams.set( 'key', this.youtubeApiKey );
 			}
 		} );
+		if ( this.settings.cachingProxy.checkIfEmbeddableByServer && typeof this.settings.cachingProxy.checkIfEmbeddableByServer === 'string' ) {
+			this.settings.cachingProxy.checkIfEmbeddableByServer = new URL( this.settings.cachingProxy.checkIfEmbeddableByServer, origin );
+		}
+	}
+
+	useClientCachedResource ()
+	{
+		if ( this.settings.clientCacheFor && this.settings.clientCacheFor > 0 ) {
+			const cacheTimestamp = localStorage.getItem( this.cacheNames.timestamp );
+			if ( cacheTimestamp && Number( cacheTimestamp ) > Date.now() - this.settings.clientCacheFor * 1000 ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	async fetchNewestVideo ()
@@ -430,8 +551,18 @@ export class YoutubeWidgetic
 			url.searchParams.set( 'channelId', this.channelId );
 			url.searchParams.set( 'part', 'snippet,id' );
 			url.searchParams.set( 'order', 'date' );
-			url.searchParams.set( 'maxResults', 1 );
-			fetch( url.href ).then( ( /** @type {Response} */ response ) =>
+			const maxResults = this.settings.cachingProxy.checkIfEmbeddableByServer ? this.settings.nLastVideos : 1;
+			url.searchParams.set( 'maxResults', maxResults );
+
+			if ( this.useClientCachedResource() ) {
+				this.youtubeData = JSON.parse( localStorage.getItem( this.cacheNames.data ) );
+				resolve( true );
+				return true;
+			}
+
+			fetch( url.href, {
+				cache: 'no-cache'
+			} ).then( ( /** @type {Response} */ response ) =>
 			{
 				if ( response.ok ) {
 					return response.text();
@@ -440,8 +571,18 @@ export class YoutubeWidgetic
 			} ).then( ( /** @type {String} */ json ) =>
 			{
 				this.youtubeData = JSON.parse( json );
-				resolve( true );
-			} )
+				if ( this.settings.clientCacheFor && this.settings.clientCacheFor > 0 ) {
+					this.findEmbeddableVideo().then( () =>
+					{
+						localStorage.setItem( this.cacheNames.num, String( this.embeddableVideoNum ) );
+						localStorage.setItem( this.cacheNames.timestamp, String( Date.now() ) );
+						localStorage.setItem( this.cacheNames.data, JSON.stringify( this.youtubeData ) );
+						resolve( true );
+					} );
+				} else {
+					resolve( true );
+				}
+			} );
 		} );
 	}
 
@@ -451,6 +592,7 @@ export class YoutubeWidgetic
 		this.constructApiUrls();
 		this.fetchNewestVideo().then( () =>
 		{
+			this.checkReturnedData();
 			this.makeRootElementSemantic();
 			this.prepareVideoVirtualDom();
 			this.showResult();

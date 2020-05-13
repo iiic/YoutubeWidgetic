@@ -1,5 +1,6 @@
-# YoutubeWidgetic v 0.1
-Na webové stránce zobrazuje nejnovější video zvoleného Youtube kanálu.
+# YoutubeWidgetic v 0.3
+
+Do webové stránky umístí poslední video zvoleného Youtube kanálu
 
 
 # Jak na to?
@@ -8,14 +9,14 @@ Potřebný je tu jediný soubor a to `youtubeWidgetic.mjs`. Ten vložit do strá
 
 ``` html
 	<div id="youtube-canvas" hidden></div>
-	<script type="module" src="/youtubeWidgetic.mjs" integrity="sha256-TgPph03ykh6Bg7Pk4RG0UTggkAcPyKC79/vPXQIuja4=" crossorigin="anonymous"></script>
+	<script type="module" src="/youtubeWidgetic.mjs" integrity="sha256-nMqSZy5kEAY1YPukuCp6+tljyw0BmOw87h6vrTI5yDs=" crossorigin="anonymous"></script>
 	<script type="module">
 		import { YoutubeWidgetic } from '/youtubeWidgetic.mjs';
 		new YoutubeWidgetic( 'your-youtube-api-key' );
 	</script>
 ```
 
-Není celý kód `<script type="module" src="youtubeWidgetic.mjs" integrity="sha256-TgPph03ykh6Bg7Pk4RG0UTggkAcPyKC79/vPXQIuja4=" crossorigin="anonymous"></script>` zbytečný? Fungovalo by to i bez něj. Jops, fungovalo, ale nešlo by bez něj zajistit kontrolu integrity javascriptového modulu. Bezpečnost je důležitá, pokud vás zajímá o bezpečnosti modulů více, čtěte zde: https://iiic.dev/subresource-integrity-check-u-javascriptovych-modulu
+Není celý kód `<script type="module" src="youtubeWidgetic.mjs" integrity="sha256-nMqSZy5kEAY1YPukuCp6+tljyw0BmOw87h6vrTI5yDs=" crossorigin="anonymous"></script>` zbytečný? Fungovalo by to i bez něj. Jops, fungovalo, ale nešlo by bez něj zajistit kontrolu integrity javascriptového modulu. Bezpečnost je důležitá, pokud vás zajímá o bezpečnosti modulů více, čtěte zde: https://iiic.dev/subresource-integrity-check-u-javascriptovych-modulu
 
 minimalistický příklad použití s nastavením je v souboru `example-usage.html` a příklad jak by mohly vypadat styly v souboru `example.css`.
 

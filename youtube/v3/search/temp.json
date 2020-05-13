@@ -1,0 +1,114 @@
+{
+  "kind": "youtube#searchListResponse",
+  "etag": "SK55auqpFckpVRj_Ls9wp9mIKYQ",
+  "nextPageToken": "CAMQAA",
+  "regionCode": "CZ",
+  "pageInfo": {
+    "totalResults": 222,
+    "resultsPerPage": 3
+  },
+  "items": [
+    {
+      "kind": "youtube#searchResult",
+      "etag": "dSvyDyaheREBNeKnvVUGj_v_82U",
+      "id": {
+        "kind": "youtube#video",
+        "videoId": "a8Q3gaq398w"
+      },
+      "snippet": {
+        "publishedAt": "2020-05-12T15:00:15Z",
+        "channelId": "UCwroqcUF4nkMIKh-G9Vc-Eg",
+        "title": "Jak švédští vědci dovedou léčit mrtvici u krys? - Vědátorovinka #50",
+        "description": "Mozek je možné po prodělané mrtvici do jisté míry regenerovat. Naznačuje to alespoň studie u modelových zvířat. K testům u lidí je daleko, přesto jde o pozitivní ...",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/a8Q3gaq398w/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/a8Q3gaq398w/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/a8Q3gaq398w/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          }
+        },
+        "channelTitle": "Vědátor",
+        "liveBroadcastContent": "none",
+        "publishTime": "2020-05-12T15:00:15Z"
+      }
+    },
+    {
+      "kind": "youtube#searchResult",
+      "etag": "XOY6HhxC6TakHgA4-YuaaQcIFRs",
+      "id": {
+        "kind": "youtube#video",
+        "videoId": "FwLQaGeJoxc"
+      },
+      "snippet": {
+        "publishedAt": "2020-05-11T19:33:09Z",
+        "channelId": "UCwroqcUF4nkMIKh-G9Vc-Eg",
+        "title": "Léčba mrtvice &amp; nová nova – ŽIVÁK týdne ve vědě 4. až 10. května 2020",
+        "description": "Vše podstatného, co se událo ve vědě v uplynulém týdnu, i dnes ve VĚDÁTORSKÉM ŽIVÁKU sesumírují Ladislavus a JaRoneus - heslem dne bude nečekané ...",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/FwLQaGeJoxc/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/FwLQaGeJoxc/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/FwLQaGeJoxc/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          }
+        },
+        "channelTitle": "Vědátor",
+        "liveBroadcastContent": "none",
+        "publishTime": "2020-05-11T19:33:09Z"
+      }
+    },
+    {
+      "kind": "youtube#searchResult",
+      "etag": "oEo1Ro20wzpcOXOBx0zShcZGmZA",
+      "id": {
+        "kind": "youtube#video",
+        "videoId": "gk5EW6WRbN8"
+      },
+      "snippet": {
+        "publishedAt": "2020-05-06T12:08:54Z",
+        "channelId": "UCwroqcUF4nkMIKh-G9Vc-Eg",
+        "title": "Potkaly americké stíhačky UFO? Co jej může vysvětlovat? - Vědátorovinka #49",
+        "description": "Nově definitivně odtajněné záběry amerického námořnictva vyvolávají otázky nad tím, co přesně mohli palubní letci v roce 2004 a 2014 sledovat. Než však ...",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/gk5EW6WRbN8/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/gk5EW6WRbN8/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/gk5EW6WRbN8/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          }
+        },
+        "channelTitle": "Vědátor",
+        "liveBroadcastContent": "none",
+        "publishTime": "2020-05-06T12:08:54Z"
+      }
+    }
+  ]
+}
