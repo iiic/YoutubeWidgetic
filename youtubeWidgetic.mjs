@@ -6,11 +6,18 @@
 * @see https://iiic.dev/youtube-widgetic
 * @license https://creativecommons.org/licenses/by-sa/4.0/legalcode.cs CC BY-SA 4.0
 * @since Q2 2020
-* @version 0.3
+* @version 0.4
 * @readonly
 */
 const YoutubeWidgeticPrivate = class
 {
+
+	static TYPE_STRING = 'String';
+	static TYPE_ARRAY = 'Array';
+	static TYPE_OBJECT = 'Object';
+	static LINK_NODE_NAME = 'LINK';
+	static ANCHOR_NODE_NAME = 'A';
+
 
 	/**
 	 * @public
@@ -18,17 +25,23 @@ const YoutubeWidgeticPrivate = class
 	 * @description default settings… can be overwritten
 	 */
 	settings = {
+		youtubeApiKey: null,
+		channelId: 'UCwroqcUF4nkMIKh-G9Vc-Eg', // it's in youtube url
+		rootElementId: 'youtube-canvas',
 		youtubeApi: {
-			origin: 'https://www.googleapis.com',
+			origins: [ 'https://www.googleapis.com' ],
 			search: '/youtube/v3/search',
 			videos: '/youtube/v3/videos', // @feature request, not used now
 			commentThreads: '/youtube/v3/commentThreads', // @feature request, not used now
 		},
 		cachingProxy: {
-			origin: null,
+			origins: [],
 			search: null,
 			checkIfEmbeddableByServer: null,
 		},
+		CSSStyleSheets: [
+			{ href: '/youtube-widgetic.css', integrity: 'sha256-jG+KXqX/CEM5hDYQK4k6Coa+yKZ7ClU00AswezCo/O0=' }
+		],
 		structure: [
 			'title',
 			'br',
@@ -37,7 +50,7 @@ const YoutubeWidgeticPrivate = class
 			'description',
 			'time',
 			'br',
-			'youtubeLink',
+			'youtubeLink'
 		],
 		resultSnippetElements: {
 			title: 'STRONG',
@@ -46,21 +59,26 @@ const YoutubeWidgeticPrivate = class
 			iFrameWrapper: 'DIV',
 			description: 'FIGCAPTION',
 			time: 'TIME',
+			inLanguage: 'SPAN'
 		},
 		resultSnippetBehaviour: {
 			allowLineBreak: true,
 			linkToYoutubeInNewTab: true,
+			setRootLang: true
 		},
 		texts: {
-			timePublished: 'video zveřejněno',
-			watchOnYoutube: 'Sledovat na YouTube',
+			timePublished: 'video published',
+			watchOnYoutube: 'watch on Youtube',
 			openInNewTabSuffix: ' ↗️',
 		},
+		preloadImages: [], // can be used if css contains images
+		langDataSources: [ '/json/iso3166-1-to-iso639-1.json', 'https://iiic.dev/json/iso3166-1-to-iso639-1.json' ],
+		prefetchVideo: true,
 		clientCacheFor: 15 * 60, // in seconds
 		nLastVideos: 3, // only if cachingProxy.checkIfEmbeddableByServer is set
 		modulesImportPath: 'https://iiic.dev/js/modules',
 		youtubeVideoShortPrefix: 'https://youtu.be/',
-		youtubeVideoEmbedPrefix: 'https://www.youtube.com/embed/',
+		youtubeVideoEmbedPrefix: 'https://www.youtube-nocookie.com/embed/', // https://www.youtube.com/embed/ or https://www.youtube-nocookie.com/embed/
 		iFrame: {
 			width: 320,
 			height: 180,
@@ -72,13 +90,7 @@ const YoutubeWidgeticPrivate = class
 	 * @public
 	 * @type {HTMLElement}
 	 */
-	rootElement = document.getElementById( 'youtube-canvas' );
-
-	/**
-	 * @public
-	 * @type {String}
-	 */
-	channelId = 'UCwroqcUF4nkMIKh-G9Vc-Eg';
+	rootElement = HTMLElement;
 
 	/**
 	* @public
@@ -93,6 +105,146 @@ const YoutubeWidgeticPrivate = class
 	embeddableVideoNum = 0;
 
 
+	async initImportWithIntegrity ( /** @type {Object} */ settings = null )
+	{
+
+		console.groupCollapsed( '%c YoutubeWidgeticPrivate %c initImportWithIntegrity %c(' + ( settings === null ? 'without settings' : 'with settings' ) + ')',
+			YoutubeWidgetic.CONSOLE.CLASS_NAME,
+			YoutubeWidgetic.CONSOLE.METHOD_NAME,
+			YoutubeWidgetic.CONSOLE.INTEREST_PARAMETER
+		);
+		console.debug( { arguments } );
+		console.groupEnd();
+
+		return new Promise( ( /** @type { Function } */ resolve ) =>
+		{
+			const ip = settings && settings.modulesImportPath ? settings.modulesImportPath : this.settings.modulesImportPath;
+			import( ip + '/importWithIntegrity.mjs' ).then( ( /** @type {Module} */ module ) =>
+			{
+				/** @type {Function} */
+				this.importWithIntegrity = module.importWithIntegrity;
+				resolve( true );
+			} ).catch( () =>
+			{
+				const SKIP_SECURITY_URL = '#skip-security-test-only'
+				if ( window.location.hash === SKIP_SECURITY_URL ) {
+					console.warn( '%c YoutubeWidgeticPrivate %c initImportWithIntegrity %c without security!',
+						YoutubeWidgetic.CONSOLE.CLASS_NAME,
+						YoutubeWidgetic.CONSOLE.METHOD_NAME,
+						YoutubeWidgetic.CONSOLE.WARNING
+					);
+					this.importWithIntegrity = (/** @type {String} */ path ) =>
+					{
+						return new Promise( ( /** @type {Function} */ resolve ) =>
+						{
+							import( path ).then( ( /** @type {Module} */ module ) =>
+							{
+								resolve( module );
+							} );
+						} );
+					};
+					resolve( true );
+				} else {
+					throw 'Security Error : Import with integrity module is missing! You can try to skip this error by adding ' + SKIP_SECURITY_URL + ' hash into website URL';
+				}
+			} );
+		} );
+	}
+
+	getEmbedLinkFromShortLink ( /** @type {String} */ href )
+	{
+		console.debug( '%c YoutubeWidgeticPrivate %c getEmbedLinkFromShortLink',
+			YoutubeWidgetic.CONSOLE.CLASS_NAME,
+			YoutubeWidgetic.CONSOLE.METHOD_NAME
+		);
+
+		return href.replace( this.settings.youtubeVideoShortPrefix, this.settings.youtubeVideoEmbedPrefix ) + '?autoplay=1';
+	}
+
+	async prepareLangFetches ()
+	{
+		console.debug( '%c YoutubeWidgeticPrivate %c prepareLangFetches',
+			YoutubeWidgetic.CONSOLE.CLASS_NAME,
+			YoutubeWidgetic.CONSOLE.METHOD_NAME
+		);
+
+		const promises = [];
+		this.settings.langDataSources.forEach( ( /** @type {String} */ endpoint ) =>
+		{
+			promises.push(
+				fetch( endpoint, {
+					method: 'GET',
+					credentials: 'omit',
+					cache: 'force-cache',
+					referrerPolicy: 'no-referrer',
+					redirect: 'manual',
+					mode: 'cors'
+				} ).then( ( /** @type {Response} */ response ) =>
+				{
+					if ( response.ok ) {
+						return response.json();
+					}
+				} )
+			);
+		} );
+		return promises;
+	}
+
+	useClientCachedResource ()
+	{
+		console.debug( '%c YoutubeWidgeticPrivate %c useClientCachedResource',
+			YoutubeWidgetic.CONSOLE.CLASS_NAME,
+			YoutubeWidgetic.CONSOLE.METHOD_NAME
+		);
+
+		if ( this.settings.clientCacheFor && this.settings.clientCacheFor > 0 ) {
+			const cacheTimestamp = localStorage.getItem( YoutubeWidgetic.cacheNames.timestamp );
+			if ( cacheTimestamp && Number( cacheTimestamp ) > Date.now() - this.settings.clientCacheFor * 1000 ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	async prepareApiFetches ()
+	{
+		console.debug( '%c YoutubeWidgeticPrivate %c prepareApiFetches',
+			YoutubeWidgetic.CONSOLE.CLASS_NAME,
+			YoutubeWidgetic.CONSOLE.METHOD_NAME
+		);
+
+		let promises = [];
+		this.settings.youtubeApi.search.forEach( ( /** @type {URL} */ url ) =>
+		{
+			url.searchParams.set( 'channelId', this.settings.channelId );
+			url.searchParams.set( 'part', 'snippet,id' );
+			url.searchParams.set( 'order', 'date' );
+			const maxResults = this.settings.cachingProxy.checkIfEmbeddableByServer ? this.settings.nLastVideos : 1;
+			url.searchParams.set( 'maxResults', maxResults );
+
+			if ( this.useClientCachedResource() ) {
+				promises = [ JSON.parse( localStorage.getItem( YoutubeWidgetic.cacheNames.data ) ) ];
+			} else {
+				promises.push(
+					fetch( url.href, {
+						method: 'GET',
+						credentials: 'omit',
+						cache: 'no-cache',
+						referrerPolicy: 'no-referrer',
+						redirect: 'follow',
+						mode: 'cors'
+					} ).then( ( /** @type {Response} */ response ) =>
+					{
+						if ( response.ok ) {
+							return response.json();
+						}
+					} )
+				);
+			}
+		} );
+		return promises;
+	}
+
 	elCreator = {
 		br: () =>
 		{
@@ -106,16 +258,17 @@ const YoutubeWidgeticPrivate = class
 		},
 		title: () =>
 		{
+			const NAME = 'title';
 			return new Promise( ( /** @type {Function} */ resolve ) =>
 			{
-				const el = this.settings.resultSnippetElements.title;
-				if ( el ) {
-					const title = document.createElement( el );
-					title.setAttribute( 'itemprop', 'name' );
-					title.className = 'fn';
-					const titleText = this.youtubeData.items[ this.embeddableVideoNum ].snippet.title.replace( '&amp;', '&' );
-					title.appendChild( document.createTextNode( titleText ) );
-					this.rootElement.appendChild( title );
+				const tag = this.settings.resultSnippetElements[ NAME ];
+				if ( tag ) {
+					const el = document.createElement( tag );
+					el.setAttribute( YoutubeWidgetic.MICRODATA.ITEMPROP, 'name' );
+					el.className = 'fn';
+					const titleText = this.youtubeData.items[ this.embeddableVideoNum ].snippet[ NAME ].replace( '&amp;', '&' );
+					el.appendChild( document.createTextNode( titleText ) );
+					this.rootElement.appendChild( el );
 				}
 				resolve( true );
 			} );
@@ -124,16 +277,16 @@ const YoutubeWidgeticPrivate = class
 		{
 			return new Promise( ( /** @type {Function} */ resolve ) =>
 			{
-				const el = this.settings.resultSnippetElements.video;
-				if ( el ) {
-					const LINK_NODE_NAME = 'A';
+				const tag = this.settings.resultSnippetElements.video;
+				if ( tag ) {
 
-					/** @type {HTMLLinkElement} */
-					const playLink = ( document.createElement( LINK_NODE_NAME ) );
+					/** @type {HTMLAnchorElement} */
+					const playLink = ( document.createElement( YoutubeWidgeticPrivate.ANCHOR_NODE_NAME ) );
 
 					const videoData = this.youtubeData.items[ this.embeddableVideoNum ];
 					playLink.href = this.settings.youtubeVideoShortPrefix + videoData.id.videoId;
 					playLink.className = 'play';
+					playLink.setAttribute( YoutubeWidgetic.MICRODATA.ITEMPROP, 'embedUrl' );
 					playLink.addEventListener( 'click', ( /** @type {MouseEvent} */ event ) =>
 					{
 						event.preventDefault();
@@ -143,16 +296,13 @@ const YoutubeWidgeticPrivate = class
 						const eventTarget = ( event.target );
 
 						let rootElement = eventTarget;
-						while ( rootElement && rootElement.nodeName !== LINK_NODE_NAME ) {
+						while ( rootElement && rootElement.nodeName !== YoutubeWidgeticPrivate.ANCHOR_NODE_NAME ) {
 							rootElement = rootElement.parentElement;
 						}
 
 						/** @type {HTMLIFrameElement} */
 						const iFrame = ( document.createElement( 'IFRAME' ) );
-
-						//@ts-ignore
-						iFrame.src = rootElement.href.replace( this.settings.youtubeVideoShortPrefix, this.settings.youtubeVideoEmbedPrefix ) + '?autoplay=1';
-
+						iFrame.src = this.getEmbedLinkFromShortLink( rootElement.href );
 						iFrame.className = 'player';
 						iFrame.width = String( this.settings.iFrame.width );
 						iFrame.height = String( this.settings.iFrame.height );
@@ -169,7 +319,7 @@ const YoutubeWidgeticPrivate = class
 
 					const thumbs = videoData.snippet.thumbnails;
 
-					const wrapper = document.createElement( el );
+					const wrapper = document.createElement( tag );
 					const innerElement = document.createElement( this.settings.resultSnippetElements.videoInner );
 
 					/** @type {HTMLSourceElement} */
@@ -186,7 +336,7 @@ const YoutubeWidgeticPrivate = class
 					img.alt = videoData.snippet.title;
 					img.width = thumbs.high.width;
 					img.height = thumbs.high.height;
-					img.setAttribute( 'itemprop', 'thumbnail thumbnailUrl' );
+					img.setAttribute( YoutubeWidgetic.MICRODATA.ITEMPROP, 'thumbnail thumbnailUrl' );
 					innerElement.appendChild( img );
 					wrapper.append( innerElement );
 					playLink.appendChild( wrapper );
@@ -197,16 +347,17 @@ const YoutubeWidgeticPrivate = class
 		},
 		description: () =>
 		{
+			const NAME = 'description';
 			return new Promise( ( /** @type {Function} */ resolve ) =>
 			{
-				const el = this.settings.resultSnippetElements.description;
-				if ( el ) {
+				const tag = this.settings.resultSnippetElements[ NAME ];
+				if ( tag ) {
 					const videoData = this.youtubeData.items[ this.embeddableVideoNum ];
-					if ( el === 'FIGCAPTION' ) {
-						const figcaption = document.createElement( el );
-						figcaption.setAttribute( 'itemprop', 'description' );
-						figcaption.appendChild( document.createTextNode( videoData.snippet.description ) );
-						this.rootElement.getElementsByTagName( this.settings.resultSnippetElements.video )[ 0 ].appendChild( figcaption );
+					if ( tag === 'FIGCAPTION' ) {
+						const el = document.createElement( tag );
+						el.setAttribute( YoutubeWidgetic.MICRODATA.ITEMPROP, NAME );
+						el.appendChild( document.createTextNode( videoData.snippet[ NAME ] ) );
+						this.rootElement.getElementsByTagName( this.settings.resultSnippetElements.video )[ 0 ].appendChild( el );
 					} else {
 						// @todo
 					}
@@ -218,14 +369,14 @@ const YoutubeWidgeticPrivate = class
 		{
 			return new Promise( ( /** @type {Function} */ resolve ) =>
 			{
-				const el = this.settings.resultSnippetElements.time;
-				if ( el ) {
+				const tag = this.settings.resultSnippetElements.time;
+				if ( tag ) {
 					const videoData = this.youtubeData.items[ this.embeddableVideoNum ];
 					const apiTimeString = videoData.snippet.publishTime ? videoData.snippet.publishTime : videoData.snippet.publishedAt;
 					const time = new Date( apiTimeString );
-					const timeElement = document.createElement( el );
+					const timeElement = document.createElement( tag );
 					timeElement.setAttribute( 'datetime', apiTimeString );
-					timeElement.setAttribute( 'itemprop', 'uploadDate' );
+					timeElement.setAttribute( YoutubeWidgetic.MICRODATA.ITEMPROP, 'uploadDate' );
 					timeElement.title = this.settings.texts.timePublished;
 					timeElement.className = 'dt-published';
 					timeElement.appendChild( document.createTextNode( time.toLocaleString() ) );
@@ -239,8 +390,8 @@ const YoutubeWidgeticPrivate = class
 			return new Promise( ( /** @type {Function} */ resolve ) =>
 			{
 
-				/** @type {HTMLLinkElement} */
-				const link = ( document.createElement( 'A' ) );
+				/** @type {HTMLAnchorElement} */
+				const link = ( document.createElement( YoutubeWidgeticPrivate.ANCHOR_NODE_NAME ) );
 
 				link.href = this.settings.youtubeVideoShortPrefix + this.youtubeData.items[ this.embeddableVideoNum ].id.videoId;
 				link.rel = 'enclosure';
@@ -252,6 +403,22 @@ const YoutubeWidgeticPrivate = class
 				}
 				link.appendChild( document.createTextNode( linkText ) );
 				this.rootElement.appendChild( link );
+				resolve( true );
+			} );
+		},
+		inLanguage: ( /** @type {String} */ lang ) =>
+		{
+			const NAME = 'inLanguage';
+			return new Promise( ( /** @type {Function} */ resolve ) =>
+			{
+				const tag = this.settings.resultSnippetElements[ NAME ];
+				if ( tag ) {
+					const el = document.createElement( tag );
+					el.hidden = true;
+					el.setAttribute( YoutubeWidgetic.MICRODATA.ITEMPROP, NAME );
+					el.appendChild( document.createTextNode( lang ) );
+					this.rootElement.appendChild( el );
+				}
 				resolve( true );
 			} );
 		}
@@ -267,7 +434,7 @@ const YoutubeWidgeticPrivate = class
 * @see https://iiic.dev/youtube-widgetic
 * @license https://creativecommons.org/licenses/by-sa/4.0/legalcode.cs CC BY-SA 4.0
 * @since Q2 2020
-* @version 0.3
+* @version 0.4
 */
 export class YoutubeWidgetic
 {
@@ -282,38 +449,59 @@ export class YoutubeWidgetic
 	* @public
 	* @description names of cache items stored in localStorage
 	*/
-	cacheNames = {
+	static cacheNames = {
 		timestamp: 'YoutubeWidgetic.cacheTimestamp',
 		data: 'YoutubeWidgetic.cachedData',
 		num: 'YoutubeWidgetic.videoEmbeddableNum',
 	}
 
-	constructor (
-		/** @type {String} */ youtubeApiKey,
-		/** @type {String | null} */ channelId = null,
-		/** @type {HTMLElement | null} */ rootElement = null,
-		/** @type {Object | null} */ settings = null
-	)
+	/**
+	* @public
+	* @description colors used for browser's console output
+	*/
+	static CONSOLE = {
+		CLASS_NAME: 'color: gray',
+		METHOD_NAME: 'font-weight: normal; color: green',
+		INTEREST_PARAMETER: 'font-weight: normal; font-size: x-small; color: blue',
+		EVENT_TEXT: 'color: orange',
+		WARNING: 'color: red',
+	};
+
+	static MICRODATA = {
+		ITEMPROP: 'itemprop',
+		ITEMSCOPE: 'itemscope',
+		ITEMTYPE: 'itemtype'
+	};
+
+	constructor ( /** @type {HTMLScriptElement | null} */ settingsElement = null )
 	{
+		console.groupCollapsed( '%c YoutubeWidgetic',
+			YoutubeWidgetic.CONSOLE.CLASS_NAME
+		);
+		console.debug( '%c' + 'constructor',
+			YoutubeWidgetic.CONSOLE.METHOD_NAME,
+			[ { arguments } ]
+		);
+
 		this._private = new YoutubeWidgeticPrivate;
 
-		this.youtubeApiKey = youtubeApiKey;
-		if ( channelId ) {
-			this.channelId = channelId;
-		}
-		if ( rootElement ) {
-			this.rootElement = rootElement;
-		}
-		if ( settings ) {
-			this.setSettings( settings ).then( () =>
-			{
-				if ( this.settings.autoRun ) {
-					this.run();
-				}
-			} );
-		} else if ( this.settings.autoRun ) {
-			this.run();
-		}
+		/** @type {Object} */
+		const settings = JSON.parse( settingsElement.text );
+
+		this._private.initImportWithIntegrity( settings ).then( () =>
+		{
+			if ( settings ) {
+				this.setSettings( settings ).then( () =>
+				{
+					if ( this.settings.autoRun ) {
+						this.run();
+					}
+				} );
+			} else if ( this.settings.autoRun ) {
+				this.run();
+			}
+		} );
+		console.groupEnd();
 	}
 
 
@@ -340,30 +528,13 @@ export class YoutubeWidgetic
 		return this._private.settings;
 	}
 
-	set channelId ( /** @type {String} */ channelId )
-	{
-		this._private.channelId = channelId;
-	}
-
 	/**
-	 * @returns {String}
+	 * @description : Get dynamic Import function
+	 * @returns {Function}
 	 */
-	get channelId ()
+	get importWithIntegrity ()
 	{
-		return this._private.channelId;
-	}
-
-	set youtubeApiKey ( /** @type {String} */ youtubeApiKey )
-	{
-		this._private.youtubeApiKey = youtubeApiKey;
-	}
-
-	/**
-	 * @returns {String}
-	 */
-	get youtubeApiKey ()
-	{
-		return this._private.youtubeApiKey;
+		return this._private.importWithIntegrity;
 	}
 
 	get elCreator ()
@@ -400,16 +571,24 @@ export class YoutubeWidgetic
 
 	async setSettings ( /** @type {Object} */ inObject )
 	{
+		console.groupCollapsed( '%c YoutubeWidgetic %c setSettings',
+			YoutubeWidgetic.CONSOLE.CLASS_NAME,
+			YoutubeWidgetic.CONSOLE.METHOD_NAME
+		);
+		console.debug( { arguments } );
+		console.groupEnd();
+
 		return new Promise( ( /** @type {Function} */ resolve ) =>
 		{
 			if ( inObject.modulesImportPath ) {
 				this.settings.modulesImportPath = inObject.modulesImportPath;
 			}
-			// @ts-ignore
-			import( this.settings.modulesImportPath + '/object/deepAssign.mjs' ).then( ( /** @type {Module} */ deepAssign ) =>
+			this.importWithIntegrity(
+				this.settings.modulesImportPath + '/object/deepAssign.mjs',
+				'sha256-qv6PwXwb5wOy4BdBQVGgGUXAdHKXMtY7HELWvcvag34='
+			).then( ( /** @type {Module} */ deepAssign ) =>
 			{
 				new deepAssign.append( Object );
-				// @ts-ignore
 				this._private.settings = Object.deepAssign( this.settings, inObject ); // multi level assign
 				resolve( true );
 			} ).catch( () =>
@@ -420,13 +599,32 @@ export class YoutubeWidgetic
 		} );
 	}
 
-	showResult ()
+	async showResult ()
 	{
+		console.debug( '%c YoutubeWidgetic %c initRootElement %c(' + this.youtubeData.regionCode + ')',
+			YoutubeWidgetic.CONSOLE.CLASS_NAME,
+			YoutubeWidgetic.CONSOLE.METHOD_NAME,
+			YoutubeWidgetic.CONSOLE.INTEREST_PARAMETER
+		);
+
+		if ( this.settings.resultSnippetBehaviour.setRootLang && this.youtubeData.regionCode ) {
+			const promises = await this._private.prepareLangFetches();
+			Promise.any( promises ).then( ( /** @type {Object} */ json ) =>
+			{
+				this.rootElement.lang = json[ this.youtubeData.regionCode ];
+				this._private.elCreator.inLanguage( json[ this.youtubeData.regionCode ] );
+			} );
+		}
 		this.rootElement.hidden = false;
 	}
 
 	async prepareVideoVirtualDom ()
 	{
+		console.debug( '%c YoutubeWidgetic %c prepareVideoVirtualDom',
+			YoutubeWidgetic.CONSOLE.CLASS_NAME,
+			YoutubeWidgetic.CONSOLE.METHOD_NAME
+		);
+
 		return new Promise( ( /** @type {Function} */ resolve ) =>
 		{
 			this.settings.structure.forEach( ( /** @type {String} */ method ) =>
@@ -439,39 +637,69 @@ export class YoutubeWidgetic
 		} );
 	}
 
-	checkApiKey ()
+	checkRequirements ()
 	{
-		if ( !this.youtubeApiKey ) {
+		console.debug( '%c YoutubeWidgetic %c checkRequirements',
+			YoutubeWidgetic.CONSOLE.CLASS_NAME,
+			YoutubeWidgetic.CONSOLE.METHOD_NAME
+		);
+
+		if ( !this.settings.youtubeApiKey ) {
 			throw 'Youtube API Key is missing, get your own at https://developers.google.com/youtube/v3/getting-started';
 		}
 	}
 
 	async makeRootElementSemantic ()
 	{
+		console.debug( '%c YoutubeWidgetic %c makeRootElementSemantic',
+			YoutubeWidgetic.CONSOLE.CLASS_NAME,
+			YoutubeWidgetic.CONSOLE.METHOD_NAME
+		);
+
 		return new Promise( ( /** @type {Function} */ resolve ) =>
 		{
 			this.rootElement.classList.add( 'hmedia' );
-			this.rootElement.setAttribute( 'itemscope', '' );
-			this.rootElement.setAttribute( 'itemtype', 'https://schema.org/VideoObject' );
+			this.rootElement.setAttribute( YoutubeWidgetic.MICRODATA.ITEMSCOPE, '' );
+			this.rootElement.setAttribute( YoutubeWidgetic.MICRODATA.ITEMTYPE, 'https://schema.org/VideoObject' );
 			resolve( true );
 		} );
 	}
 
-	checkReturnedData ()
+	cacheFetchedResource ()
 	{
-		if ( typeof this.youtubeData !== 'object' ) {
-			throw 'Fetching data from Youtube failed';
+		console.debug( '%c YoutubeWidgetic %c cacheFetchedResource',
+			YoutubeWidgetic.CONSOLE.CLASS_NAME,
+			YoutubeWidgetic.CONSOLE.METHOD_NAME
+		);
+
+		if ( this.settings.clientCacheFor && this.settings.clientCacheFor > 0 ) {
+			this.findEmbeddableVideo().then( () =>
+			{
+				localStorage.setItem( YoutubeWidgetic.cacheNames.num, String( this.embeddableVideoNum ) );
+				localStorage.setItem( YoutubeWidgetic.cacheNames.timestamp, String( Date.now() ) );
+				localStorage.setItem( YoutubeWidgetic.cacheNames.data, JSON.stringify( this.youtubeData ) );
+			} );
 		}
 	}
 
 	async isEmbeddableVideoBy ( /** @type {URL} */ url, /** @type {Number} */ iterator )
 	{
+		console.debug( '%c YoutubeWidgetic %c isEmbeddableVideoBy',
+			YoutubeWidgetic.CONSOLE.CLASS_NAME,
+			YoutubeWidgetic.CONSOLE.METHOD_NAME
+		);
+
 		return new Promise( ( /** @type {Function} */ resolve ) =>
 		{
 			const item = this.youtubeData.items[ iterator ];
 			url.searchParams.set( 'id', item.id.videoId );
 			fetch( url.href, {
-				cache: 'no-cache'
+				method: 'GET',
+				credentials: 'omit',
+				cache: 'no-cache',
+				referrerPolicy: 'no-referrer',
+				redirect: 'manual',
+				mode: 'cors'
 			} ).then( ( /** @type {Response} */ response ) =>
 			{
 				if ( response.ok ) {
@@ -495,12 +723,17 @@ export class YoutubeWidgetic
 
 	async findEmbeddableVideo ()
 	{
+		console.debug( '%c YoutubeWidgetic %c findEmbeddableVideo',
+			YoutubeWidgetic.CONSOLE.CLASS_NAME,
+			YoutubeWidgetic.CONSOLE.METHOD_NAME
+		);
+
 		return new Promise( ( /** @type {Function} */ resolve ) =>
 		{
 			const url = this.settings.cachingProxy.checkIfEmbeddableByServer;
-			if ( url && typeof url !== 'string' ) {
-				if ( this.useClientCachedResource() ) {
-					this.embeddableVideoNum = Number( localStorage.getItem( this.cacheNames.num ) );
+			if ( url && url.constructor.name !== YoutubeWidgeticPrivate.TYPE_STRING ) {
+				if ( this._private.useClientCachedResource() ) {
+					this.embeddableVideoNum = Number( localStorage.getItem( YoutubeWidgetic.cacheNames.num ) );
 					resolve( true );
 					return true;
 				}
@@ -515,89 +748,226 @@ export class YoutubeWidgetic
 		} );
 	}
 
+	/**
+	 * @description : if cachingProxy is set it has importance and overwrites native API and constructs checkIfEmbeddableByServer
+	 */
 	constructApiUrls ()
 	{
-		const ORIGIN_KEY = 'origin';
-		const origin = this.settings.cachingProxy[ ORIGIN_KEY ] ? this.settings.cachingProxy[ ORIGIN_KEY ] : this.settings.youtubeApi[ ORIGIN_KEY ];
+		const SLASH = '/';
+
+		console.debug( '%c YoutubeWidgetic %c constructApiUrls',
+			YoutubeWidgetic.CONSOLE.CLASS_NAME,
+			YoutubeWidgetic.CONSOLE.METHOD_NAME
+		);
+
+		const constructOrigin = () =>
+		{
+			return window.location.protocol + '//' + window.location.hostname;
+		};
+		const constructURLsBy = ( /** @type {Array} */ origins, /** @type {String} */ current ) =>
+		{
+			const urlsOrigins = [];
+			origins.forEach( ( /** @type {String} */ origin ) =>
+			{
+				if ( origin === SLASH ) {
+					origin = constructOrigin();
+				}
+				const url = new URL( current, origin );
+				url.searchParams.set( 'key', this.settings.youtubeApiKey );
+				urlsOrigins.push( url );
+			} );
+			return urlsOrigins;
+		}
+
+		if (
+			this.settings.cachingProxy.origins.constructor.name === YoutubeWidgeticPrivate.TYPE_ARRAY
+			&& this.settings.cachingProxy.origins.length
+		) { // caching has priority
+			this.settings.youtubeApi.origins = this.settings.cachingProxy.origins;
+		}
 		Object.keys( this.settings.youtubeApi ).forEach( ( /** @type {String} */ key ) =>
 		{
-			if ( key !== ORIGIN_KEY && typeof this.settings.youtubeApi[ key ] === 'string' ) {
-				const pathname = this.settings.cachingProxy[ key ] ? this.settings.cachingProxy[ key ] : this.settings.youtubeApi[ key ];
-				this.settings.youtubeApi[ key ] = new URL( pathname, origin );
-				this.settings.youtubeApi[ key ].searchParams.set( 'key', this.youtubeApiKey );
+			const current = this.settings.youtubeApi[ key ];
+			if ( current.constructor.name !== YoutubeWidgeticPrivate.TYPE_ARRAY ) {
+				this.settings.youtubeApi[ key ] = constructURLsBy( this.settings.youtubeApi.origins, current );
 			}
 		} );
-		if ( this.settings.cachingProxy.checkIfEmbeddableByServer && typeof this.settings.cachingProxy.checkIfEmbeddableByServer === 'string' ) {
+		if (
+			this.settings.cachingProxy.checkIfEmbeddableByServer
+			&& this.settings.cachingProxy.checkIfEmbeddableByServer.constructor.name === YoutubeWidgeticPrivate.TYPE_STRING
+		) {
+			const origin = this.settings.youtubeApi.origins[ 0 ] === SLASH ? constructOrigin() : this.settings.youtubeApi.origins[ 0 ];
 			this.settings.cachingProxy.checkIfEmbeddableByServer = new URL( this.settings.cachingProxy.checkIfEmbeddableByServer, origin );
 		}
 	}
 
-	useClientCachedResource ()
-	{
-		if ( this.settings.clientCacheFor && this.settings.clientCacheFor > 0 ) {
-			const cacheTimestamp = localStorage.getItem( this.cacheNames.timestamp );
-			if ( cacheTimestamp && Number( cacheTimestamp ) > Date.now() - this.settings.clientCacheFor * 1000 ) {
-				return true;
-			}
-		}
-		return false;
-	}
-
 	async fetchNewestVideo ()
 	{
+		console.debug( '%c YoutubeWidgetic %c fetchNewestVideo',
+			YoutubeWidgetic.CONSOLE.CLASS_NAME,
+			YoutubeWidgetic.CONSOLE.METHOD_NAME
+		);
+
+		const promises = await this._private.prepareApiFetches();
+		return Promise.any( promises ).then( ( /** @type {Object} */ json ) =>
+		{
+			if ( !json ) {
+				throw 'Error : Failed fetching data from Youtube API, have you got correct API key?';
+			}
+			if ( json.pageInfo.totalResults <= 0 ) {
+				throw 'Error : Videos not found. It\'s channelId filled correctly?';
+			}
+			if ( json.constructor.name !== YoutubeWidgeticPrivate.TYPE_OBJECT ) {
+				throw 'Error : Data type returned from API is corrupted';
+			}
+			this.youtubeData = json;
+		} );
+	}
+
+	preloadImages ()
+	{
+		console.groupCollapsed( '%c YoutubeWidgetic %c preloadImages',
+			YoutubeWidgetic.CONSOLE.CLASS_NAME,
+			YoutubeWidgetic.CONSOLE.METHOD_NAME
+		);
+		console.debug( this.settings.preloadImages );
+
+		this.settings.preloadImages.forEach( ( /** @type {URL|String} */ url ) =>
+		{
+
+			/** @type {String} */
+			const href = ( url.constructor.name === YoutubeWidgeticPrivate.TYPE_STRING ) ? url : url.href;
+
+			/** @type {HTMLLinkElement} */
+			const link = document.createElement( YoutubeWidgeticPrivate.LINK_NODE_NAME );
+
+			link.rel = 'preload';
+			link.href = href;
+			link.as = 'image';
+			// link.setAttribute( 'crossorigin', 'anonymous' ); // cannot be anonymous !
+			document.head.appendChild( link );
+		} );
+
+		console.groupEnd();
+	}
+
+	initRootElement ()
+	{
+		console.debug( '%c YoutubeWidgetic %c initRootElement',
+			YoutubeWidgetic.CONSOLE.CLASS_NAME,
+			YoutubeWidgetic.CONSOLE.METHOD_NAME
+		);
+
+		this.rootElement = document.getElementById( this.settings.rootElementId );
+	}
+
+	prefetchVideo ()
+	{
+		console.debug( '%c YoutubeWidgetic %c prefetchVideo',
+			YoutubeWidgetic.CONSOLE.CLASS_NAME,
+			YoutubeWidgetic.CONSOLE.METHOD_NAME
+		);
+
+		if ( this.settings.prefetchVideo ) {
+
+			/** @type {HTMLLinkElement} */
+			const link = document.createElement( YoutubeWidgeticPrivate.LINK_NODE_NAME );
+
+			link.rel = 'prefetch';
+			link.href = this._private.getEmbedLinkFromShortLink( this.rootElement.querySelector( YoutubeWidgeticPrivate.ANCHOR_NODE_NAME ).href );
+			link.as = 'document'; // for iframe
+			document.head.appendChild( link );
+		}
+	}
+
+	async addCSSStyleSheets ()
+	{
+		console.debug( '%c YoutubeWidgetic %c addCSSStyleSheets',
+			YoutubeWidgetic.CONSOLE.CLASS_NAME,
+			YoutubeWidgetic.CONSOLE.METHOD_NAME
+		);
+
 		return new Promise( ( /** @type {Function} */ resolve ) =>
 		{
-			const url = this.settings.youtubeApi.search;
-			url.searchParams.set( 'channelId', this.channelId );
-			url.searchParams.set( 'part', 'snippet,id' );
-			url.searchParams.set( 'order', 'date' );
-			const maxResults = this.settings.cachingProxy.checkIfEmbeddableByServer ? this.settings.nLastVideos : 1;
-			url.searchParams.set( 'maxResults', maxResults );
-
-			if ( this.useClientCachedResource() ) {
-				this.youtubeData = JSON.parse( localStorage.getItem( this.cacheNames.data ) );
-				resolve( true );
-				return true;
-			}
-
-			fetch( url.href, {
-				cache: 'no-cache'
-			} ).then( ( /** @type {Response} */ response ) =>
+			const usedStyleSheets = new Set();
+			[ ...document.styleSheets ].forEach( ( /** @type {CSSStyleSheet} */ css ) =>
 			{
-				if ( response.ok ) {
-					return response.text();
-				}
-				return null;
-			} ).then( ( /** @type {String} */ json ) =>
-			{
-				this.youtubeData = JSON.parse( json );
-				if ( this.settings.clientCacheFor && this.settings.clientCacheFor > 0 ) {
-					this.findEmbeddableVideo().then( () =>
-					{
-						localStorage.setItem( this.cacheNames.num, String( this.embeddableVideoNum ) );
-						localStorage.setItem( this.cacheNames.timestamp, String( Date.now() ) );
-						localStorage.setItem( this.cacheNames.data, JSON.stringify( this.youtubeData ) );
-						resolve( true );
-					} );
-				} else {
-					resolve( true );
+				if ( css.disabled === false ) {
+					usedStyleSheets.add( css.href );
 				}
 			} );
+			this.settings.CSSStyleSheets.forEach( ( /** @type {Object} */ assignment ) =>
+			{
+				let url = URL;
+				if ( assignment.href.startsWith( 'https://', 0 ) || assignment.href.startsWith( 'http://', 0 ) ) {
+					url = new URL( assignment.href );
+				} else {
+					url = new URL( assignment.href, window.location.protocol + '//' + window.location.hostname );
+				}
+				if ( !usedStyleSheets.has( url.href ) ) {
+					fetch( url.href, {
+						method: 'HEAD',
+						credentials: 'omit',
+						cache: 'force-cache',
+						referrerPolicy: 'no-referrer',
+						redirect: 'manual',
+						mode: 'cors'
+					} ).then( ( /** @type {Response} */ response ) =>
+					{
+						if ( response.ok ) {
+							return true;
+						} else {
+							throw 'error';
+						}
+					} ).then( () =>
+					{
+						/** @type {HTMLLinkElement} */
+						const link = document.createElement( YoutubeWidgeticPrivate.LINK_NODE_NAME );
+
+						link.href = url.href;
+						link.rel = 'stylesheet';
+						link.setAttribute( 'crossorigin', 'anonymous' );
+						if ( assignment.integrity ) {
+							link.integrity = assignment.integrity;
+						}
+						document.head.appendChild( link );
+					} ).catch( () =>
+					{
+						resolve( false );
+					} );
+				}
+			} );
+			resolve( true );
 		} );
 	}
 
 	run ()
 	{
-		this.checkApiKey();
+		console.groupCollapsed( '%c YoutubeWidgetic %c run',
+			YoutubeWidgetic.CONSOLE.CLASS_NAME,
+			YoutubeWidgetic.CONSOLE.METHOD_NAME
+		);
+
+		this.checkRequirements();
+		this.addCSSStyleSheets();
+		this.initRootElement();
 		this.constructApiUrls();
 		this.fetchNewestVideo().then( () =>
 		{
-			this.checkReturnedData();
+			this.cacheFetchedResource();
 			this.makeRootElementSemantic();
-			this.prepareVideoVirtualDom();
+			this.prepareVideoVirtualDom().then( () =>
+			{
+				this.prefetchVideo();
+			} );
 			this.showResult();
+			this.preloadImages();
 		} );
+
+		console.groupEnd();
 
 		return true;
 	}
 };
+
+new YoutubeWidgetic( document.getElementById( 'youtube-widgetic-settings' ) );

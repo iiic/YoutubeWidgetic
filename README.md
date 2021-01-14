@@ -1,32 +1,47 @@
-# YoutubeWidgetic v 0.3
+# YoutubeWidgetic
 
-Do webové stránky umístí poslední video zvoleného Youtube kanálu
+Place newest video from selected Youtube Channel into web page.
 
+![Snapshot](https://iiic.dev/images/youtube-widgetic-snapshot.png)
 
-# Jak na to?
+# What's new in version 0.4 ?
+- script settings by json file
+- possible preload images and prefetch video
 
-Potřebný je tu jediný soubor a to `youtubeWidgetic.mjs`. Ten vložit do stránky a spustit takto nějak:
+# Use
+
+Polyfill is in single javascript module file `youtubeWidgetic.mjs`. Include it into your site like this:
 
 ``` html
-	<div id="youtube-canvas" hidden></div>
-	<script type="module" src="/youtubeWidgetic.mjs" integrity="sha256-nMqSZy5kEAY1YPukuCp6+tljyw0BmOw87h6vrTI5yDs=" crossorigin="anonymous"></script>
-	<script type="module">
-		import { YoutubeWidgetic } from '/youtubeWidgetic.mjs';
-		new YoutubeWidgetic( 'your-youtube-api-key' );
-	</script>
+<div id="youtube-canvas" hidden></div>
+<script type="text/json" id="youtube-widgetic-settings">
+	{
+		"youtubeApiKey": "AIzaSyDUXfwNP4_0kmG8aMLNlY7elAdRQZTFvBA",
+		"channelId": "UCwroqcUF4nkMIKh-G9Vc-Eg",
+		"modulesImportPath": "/modules",
+		"preloadImages": [ "/images/youtube.svg" ],
+		"texts": {
+			"timePublished": "video published",
+			"watchOnYoutube": "Watch on Youtube"
+		}
+	}
+</script>
+<script type="module" src="/youtubeWidgetic.mjs?v0.4" crossorigin="anonymous" integrity="sha256-XPGiNIYV9I1Mavs+kT3WFQNyk1pqYVdOBtSnPekOccQ="></script>
 ```
 
-Není celý kód `<script type="module" src="youtubeWidgetic.mjs" integrity="sha256-nMqSZy5kEAY1YPukuCp6+tljyw0BmOw87h6vrTI5yDs=" crossorigin="anonymous"></script>` zbytečný? Fungovalo by to i bez něj. Jops, fungovalo, ale nešlo by bez něj zajistit kontrolu integrity javascriptového modulu. Bezpečnost je důležitá, pokud vás zajímá o bezpečnosti modulů více, čtěte zde: https://iiic.dev/subresource-integrity-check-u-javascriptovych-modulu
+All other files like `example-usage.html` and `youtube-widgetic.css` are there to help, but they are not needed for polyfill function.
 
-minimalistický příklad použití s nastavením je v souboru `example-usage.html` a příklad jak by mohly vypadat styly v souboru `example.css`.
+# Where to get Youtube API key?
 
-# Nastavení
+Complete documentation at https://developers.google.com/youtube/v3/getting-started/ . For quick task with no reading lot of texts go straight into https://console.developers.google.com/apis/api/youtube.googleapis.com .
 
-Je možné provést 4. parametrem konstruktoru.
+And good news… it's for free (with limited tasks per day)
 
-# Možné problémy?
+# Services
 
-mjs přípona musí mít nastavený správný mime type a to `text/javascript`, pokud je to moc pracné přejmenujte koncovku z `.mjs` na `.js` . Více o modulech na https://www.vzhurudolu.cz/prirucka/js-moduly
+Unpkg: https://unpkg.com/youtube-widgetic
+
+NPM: https://www.npmjs.com/package/youtube-widgetic
 
 # Licence
 
@@ -36,4 +51,4 @@ This work is licensed under the Creative Commons Attribution-ShareAlike 4.0 Inte
 
 -------
 
-Nějaké další info na https://iiic.dev/youtube-widgetic
+more info at https://iiic.dev/youtube-widgetic

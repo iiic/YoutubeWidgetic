@@ -4,20 +4,28 @@
 <head>
 	<meta charset="utf-8">
 	<title>YoutubeWidgetic html example</title>
-	<link rel="stylesheet" href="/example.css" crossorigin="anonymous" integrity="sha256-zB06/Tu4Dg5/xFSu/o5LgbTzZolZ803f3xQYjn3rNng=">
+	<style>
+		body {
+			box-sizing: border-box;
+			max-width: 310px;
+		}
+
+	</style>
+	<link rel="stylesheet" href="/youtube-widgetic.css" crossorigin="anonymous" integrity="sha256-jG+KXqX/CEM5hDYQK4k6Coa+yKZ7ClU00AswezCo/O0=">
 </head>
 
 <body>
-
 	<div id="youtube-canvas" hidden></div>
-	<script type="module" src="/youtubeWidgetic.mjs" crossorigin="anonymous" integrity="sha256-nMqSZy5kEAY1YPukuCp6+tljyw0BmOw87h6vrTI5yDs="></script>
-	<script type="module">
-		import { YoutubeWidgetic } from '/youtubeWidgetic.mjs';
-		const config = {
-			cachingProxy: {
-				origin: window.location.origin,
-				checkIfEmbeddableByServer: '/youtube/isPlayableInEmbed',
-			},
-		};
-		new YoutubeWidgetic( 'AIzaSyDUXfwNP4_0kmG8aMLNlY7elAdRQZTFvBA', null, null, config );
+	<script type="text/json" id="youtube-widgetic-settings">
+		{
+			"youtubeApiKey": "AIzaSyDUXfwNP4_0kmG8aMLNlY7elAdRQZTFvBA",
+			"channelId": "UCwroqcUF4nkMIKh-G9Vc-Eg",
+			"modulesImportPath": "/modules",
+			"preloadImages": [ "/images/youtube.svg" ],
+			"texts": {
+				"timePublished": "video zveřejněno",
+				"watchOnYoutube": "Sledovat na Youtube"
+			}
+		}
 	</script>
+	<script type="module" src="/youtubeWidgetic.mjs?v0.4" crossorigin="anonymous" integrity="sha256-XPGiNIYV9I1Mavs+kT3WFQNyk1pqYVdOBtSnPekOccQ="></script>

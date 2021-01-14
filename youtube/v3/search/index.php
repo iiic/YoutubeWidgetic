@@ -7,6 +7,8 @@
 const TEMP_FILE_NAME = 'temp.json';
 const MINUTE = 60;
 
+const TIME_LIMIT = 12; // in minutes
+
 $opts = [
 	'http' => [
 		'method' => 'GET',
@@ -15,7 +17,7 @@ $opts = [
 
 $context = stream_context_create($opts);
 
-if (time() > ( filemtime(TEMP_FILE_NAME) + (5 * MINUTE) )) {
+if (time() > ( filemtime(TEMP_FILE_NAME) + (TIME_LIMIT * MINUTE) )) {
 	$response = @file_get_contents('https://www.googleapis.com/youtube/v3/search?' . http_build_query($_GET), false, $context);
 	file_put_contents(TEMP_FILE_NAME, $response);
 } else {
